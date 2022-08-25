@@ -19,6 +19,7 @@ Base.prepare(engine, reflect=True)
 Measurement = Base.classes.measurement
 Station = Base.classes.station
 
+# function to calculate most recent year of data in database
 def year_calc():
     session = Session(bind=engine)
     recent_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
@@ -28,7 +29,6 @@ def year_calc():
     start_year = dtObj - relativedelta(years=1)
     start_year = start_year.strftime(date_format)
     return((recent_date,start_year))
-    
 
 # Flask routes
 app = Flask(__name__)
@@ -91,12 +91,36 @@ def temp():
         temp_data.append(temp_dict)
     return jsonify(temp_data)
 
-#@app.route("/api/v1.0/<start>")
+@app.route("/api/v1.0/<start>")
+def summary_start(start):
+    session = Session(bind=engine)
+    recent_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    oldest_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
+    if start > recent_date or start < oldest_date:
+        return("Your date is outside the range of the database",404)
+    else:
+        stats = session.query(func.min(Measurement.tobs).label("Min Temp"),func.max(Measurement.tobs).label("Max Temp"),func.avg(Measurement.tobs).label("Average Temp")).filter(Measurement.date >= start)
+        stat_list = []
+        for s_min, s_max, s_avg in stats:
+            s_dict = {}
+            s_dict['min_temp'] = s_min
+            s_dict['max_temp'] = s_max
+            s_dict['avg_temp'] = s_avg
+            stat_list.append(s_dict)
+        return jsonify(stat_list)
+    session.close()
+'''
 #@app.route("/api/v1.0/<start>/<end>")
 #Return a JSON list of the minimum temperature, the average temperature, and the maximum temperature for a given start or start-end range.
 #When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than or equal to the start date.
 #When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates from the start date through the end date (inclusive).
 
+    session = Session(bind=engine)
+    recent_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    oldest_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
+    session.close()
+
+'''
 
 if __name__ == ("__main__"):
     app.run(debug=True)
