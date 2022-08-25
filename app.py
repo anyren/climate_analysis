@@ -41,8 +41,8 @@ def home():
         "/api/v1.0/precipitation</br>"
         "/api/v1.0/stations</br>"
         "/api/v1.0/tobs</br>"
-        "/api/v1.0/startdate</br>"
-        "/api/v1.0/startdate/enddate</br>"
+        "/api/v1.0/2016-08-23 - returns min, max, average temperature for all observations starting on provided date</br>"
+        "/api/v1.0/2016-08-23/2017-08-23 - returns min, max, average temperature for all observations between provided dates (inclusive)</br>"
     )
 
 @app.route("/api/v1.0/precipitation")
@@ -96,31 +96,35 @@ def summary_start(start):
     session = Session(bind=engine)
     recent_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
     oldest_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
-    if start > recent_date or start < oldest_date:
-        return("Your date is outside the range of the database",404)
-    else:
-        stats = session.query(func.min(Measurement.tobs).label("Min Temp"),func.max(Measurement.tobs).label("Max Temp"),func.avg(Measurement.tobs).label("Average Temp")).filter(Measurement.date >= start)
-        stat_list = []
-        for s_min, s_max, s_avg in stats:
-            s_dict = {}
-            s_dict['min_temp'] = s_min
-            s_dict['max_temp'] = s_max
-            s_dict['avg_temp'] = s_avg
-            stat_list.append(s_dict)
-        return jsonify(stat_list)
+    stats = session.query(func.min(Measurement.tobs).label("Min Temp"),func.max(Measurement.tobs).label("Max Temp"),func.avg(Measurement.tobs).label("Average Temp")).filter(Measurement.date >= start)
+    stat_list = []
+    for s_min, s_max, s_avg in stats:
+        s_dict = {}
+        s_dict['min_temp'] = s_min
+        s_dict['max_temp'] = s_max
+        s_dict['avg_temp'] = s_avg
+        stat_list.append(s_dict)
+    return jsonify(stat_list)
     session.close()
-'''
-#@app.route("/api/v1.0/<start>/<end>")
+
+@app.route("/api/v1.0/<start>/<end>")
 #Return a JSON list of the minimum temperature, the average temperature, and the maximum temperature for a given start or start-end range.
 #When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than or equal to the start date.
 #When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates from the start date through the end date (inclusive).
-
+def summary_start_end(start,end):
     session = Session(bind=engine)
     recent_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
     oldest_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
+    stats = session.query(func.min(Measurement.tobs).label("Min Temp"),func.max(Measurement.tobs).label("Max Temp"),func.avg(Measurement.tobs).label("Average Temp")).filter(Measurement.date >= start).filter(Measurement.date <=end)
+    stat_list = []
+    for s_min, s_max, s_avg in stats:
+        s_dict = {}
+        s_dict['min_temp'] = s_min
+        s_dict['max_temp'] = s_max
+        s_dict['avg_temp'] = s_avg
+        stat_list.append(s_dict)
+    return jsonify(stat_list)
     session.close()
-
-'''
 
 if __name__ == ("__main__"):
     app.run(debug=True)
